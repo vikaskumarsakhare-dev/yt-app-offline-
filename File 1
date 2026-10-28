@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Style Offline Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0f0f0f; color: #ffffff; font-family: sans-serif; overflow-x: hidden; }
+        /* Hide scrollbars for shorts section */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="pb-16">
+
+    <!-- Top YouTube Header -->
+    <header class="sticky top-0 z-50 bg-[#0f0f0f]/95 backdrop-blur px-4 py-3 flex items-center justify-between border-b border-[#272727]">
+        <div class="flex items-center space-x-2">
+            <i class="fa-brands fa-youtube text-red-600 text-3xl"></i>
+            <span class="text-xl font-bold tracking-tighter">MyTube</span>
+        </div>
+        <button onclick="requestStoragePermission()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-full text-xs font-semibold">
+            <i class="fa-solid fa-rotate"></i> वीडियो रीफ्रेश करें
+        </button>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="max-w-md mx-auto mt-2">
+
+        <!-- Shorts Section Header -->
+        <div class="px-4 py-2 flex items-center space-x-2">
+            <i class="fa-solid fa-bolt text-red-500 text-lg"></i>
+            <h3 class="font-bold text-lg">Shorts</h3>
+        </div>
+
+        <!-- Horizontal Shorts Tray -->
+        <div id="shortsTray" class="flex overflow-x-auto space-x-3 px-4 py-2 no-scrollbar">
+            <!-- Dynamic Shorts items will load here -->
+            <div class="text-gray-500 text-xs py-4">वीडियो लोड हो रहे हैं... परमिशन दें।</div>
+        </div>
+
+        <hr class="border-[#272727] my-3">
+
+        <!-- Long Videos Section Header -->
+        <div class="px-4 py-2">
+            <h3 class="font-bold text-lg">लॉन्ग वीडियो</h3>
+        </div>
+
+        <!-- Vertical Long Videos Feed -->
+        <div id="longVideoFeed" class="flex flex-col space-y-4 px-4">
+            <!-- Dynamic Long videos will load here -->
+        </div>
+    </main>
+
+    <!-- Fullscreen Video/Shorts Player Modal -->
+    <div id="playerModal" class="fixed inset-0 bg-black z-50 hidden flex flex-col justify-between">
+        <div class="absolute top-4 left-4 z-10">
+            <button onclick="closePlayer()" class="bg-black/60 text-white w-10 h-10 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+        </div>
+        <div class="flex-1 flex items-center justify-center relative">
+            <video id="activeVideoElement" controls autoplay class="w-full h-full object-contain"></video>
+        </div>
+    </div>
+
+    <!-- JavaScript for Auto-Scan & UI Rendering -->
+    <script>
+        // Simulated local storage or File System Access for Mobile App wrapper
+        let allVideos = [];
+
+        // Automatically request permission and scan storage when app opens
+        window.onload = function() {
+            requestStoragePermission();
+        };
+
+        function requestStoragePermission() {
+            // In a real Android WebView/Cordova app, this triggers native storage read intent.
+            // For web preview, we use file input picker or sample mock if empty, 
+            // but to make it auto-scan in Android, use Cordova file plugin.
+            
+            // Let's create an automated file trigger or prompt user to select folder/files once:
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'video/*';
+            input.multiple = true;
+            
+            input.onchange = e => {
+                const files = e.target.files;
+                allVideos = [];
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    allVideos.push({
+                        name: file.name,
+                        url: URL.createObjectURL(file),
+                        size: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                        // If video aspect ratio is vertical (shorts) or horizontal (long)
+                        // For demo, we classify based on name or duration if available, else split alternatively
+                        type: i % 2 === 0 ? 'long' : 'shorts' 
+                    });
+                }
+                renderUI();
+            };
+            
+            // Trigger file selection automatically on load for local testing, 
+            // In native Android wrapper, replace this block with native MediaStore query code.
+            input.click();
+        }
+
+        function renderUI() {
+            const shortsTray = document.getElementById('shortsTray');
+            const longVideoFeed = document.getElementById('longVideoFeed');
+            
+            shortsTray.innerHTML = '';
+            longVideoFeed.innerHTML = '';
+
+            let shortsCount = 0;
+            let longCount = 0;
+
+            allVideos.forEach((video, index) => {
+                if (video.type === 'shorts') {
+                    shortsCount++;
+                    const shortCard = document.createElement('div');
+                    shortCard.className = 'flex-shrink-0 w-32 h-56 bg-[#272727] rounded-xl overflow-hidden relative cursor-pointer shadow-md';
+                    shortCard.innerHTML = `
+                        <div class="absolute inset-0 flex items-center justify-center bg-zinc-800">
+                            <i class="fa-solid fa-play text-white opacity-70 text-2xl"></i>
+                        </div>
+                        <div class="absolute bottom-2 left-2 right-2 text-xs font-semibold text-white truncate drop-shadow">
+                            ${video.name}
+                        </div>
+                    `;
+                    shortCard.onclick = () => playVideo(video.url);
+                    shortsTray.appendChild(shortCard);
+                } else {
+                    longCount++;
+                    const longCard = document.createElement('div');
+                    longCard.className = 'flex flex-col space-y-2 cursor-pointer';
+                    longCard.innerHTML = `
+                        <div class="w-full aspect-video bg-zinc-900 rounded-xl relative flex items-center justify-center overflow-hidden">
+                            <i class="fa-solid fa-play text-white opacity-80 text-3xl"></i>
+                        </div>
+                        <div class="flex space-x-3">
+                            <div class="w-9 h-9 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold">YT</div>
+                            <div>
+                                <h4 class="text-sm font-semibold line-clamp-2 text-white">${video.name}</h4>
+                                <span class="text-xs text-zinc-400">오프라인 • ${video.size}</span>
+                            </div>
+                        </div>
+                    `;
+                    longCard.onclick = () => playVideo(video.url);
+                    longVideoFeed.appendChild(longCard);
+                }
+            });
+
+            if(shortsCount === 0) shortsTray.innerHTML = '<span class="text-xs text-zinc-500 px-2">कोई शॉर्ट वीडियो नहीं मिला।</span>';
+            if(longCount === 0) longVideoFeed.innerHTML = '<span class="text-xs text-zinc-500 px-4">कोई लॉन्ग वीडियो नहीं मिला।</span>';
+        }
+
+        function playVideo(url) {
+            const modal = document.getElementById('playerModal');
+            const videoElem = document.getElementById('activeVideoElement');
+            videoElem.src = url;
+            modal.classList.remove('hidden');
+            videoElem.play();
+        }
+
+        function closePlayer() {
+            const modal = document.getElementById('playerModal');
+            const videoElem = document.getElementById('activeVideoElement');
+            videoElem.pause();
+            videoElem.src = '';
+            modal.classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
+
