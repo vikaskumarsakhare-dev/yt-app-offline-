@@ -3,7 +3,7 @@
   "short_name": "YT Player",
   "start_url": "https://vikaskumarsakhare-dev.github.io/yt-app-offline-/",
   "display": "standalone",
-  "background_color": "#000000",
+  "background_color": "#0f0f0f",
   "theme_color": "#ff0000",
   "icons": []
 }
