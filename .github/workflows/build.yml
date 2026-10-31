@@ -51,8 +51,8 @@ jobs:
           fi
           cat > capacitor.config.json <<'EOF'
           {
-            "appId": "com.vplayer.app",
-            "appName": "V Player",
+            "appId": "com.vplayer.newapp",
+            "appName": "V Player new",
             "webDir": "www",
             "backgroundColor": "#071a20"
           }
